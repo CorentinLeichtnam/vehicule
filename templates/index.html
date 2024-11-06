@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trajet et véhicules</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Planifiez votre trajet</h1>
+        <form method="POST">
+            <div class="form-group">
+                <label for="start_city">Ville de départ</label>
+                <input type="text" class="form-control" id="start_city" name="start_city" required>
+            </div>
+            <div class="form-group">
+                <label for="end_city">Ville d'arrivée</label>
+                <input type="text" class="form-control" id="end_city" name="end_city" required>
+            </div>
+            <div class="form-group">
+                <label for="vehicle_id">Choisir un véhicule</label>
+                <select class="form-control" id="vehicle_id" name="vehicle_id" required>
+                    {% for vehicle in vehicles %}
+                    <option value="{{ vehicle.id }}">{{ vehicle.naming.make }} {{ vehicle.naming.model }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Calculer</button>
+        </form>
+        
+        <div id="result" class="result-card">
+            <h4>Informations sur le trajet</h4>
+            <p id="distance"></p>
+            <p id="duration"></p>
+        </div>
+
+        <div id="map" style="height: 500px;"></div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            var map = L.map('map').setView([48.8566, 2.3522], 12);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+            $('form').submit(function(event) {
+                event.preventDefault();
+                var formData = $(this).serialize();
+                $.post('/route_data', formData, function(response) {
+                    if (response.error) {
+                        alert(response.error);
+                        return;
+                    }
+
+                    var route = response.route;
+                    var stations = response.stations;
+                    var latlngs = route.map(function(coord) { return [coord[0], coord[1]] });
+
+                    L.polyline(latlngs, {color: 'blue'}).addTo(map);
+
+                    stations.forEach(function(station) {
+                        var stationCoord = station.location.coordinates;
+                        L.marker([stationCoord[1], stationCoord[0]]).bindPopup(station.name).addTo(map);
+                    });
+
+                    L.circleMarker([route[0][0], route[0][1]], {
+                        color: 'green',
+                        radius: 6,
+                        fillColor: 'green',
+                        fillOpacity: 0.8
+                    }).addTo(map);
+
+                    L.circleMarker([route[route.length - 1][0], route[route.length - 1][1]], {
+                        color: 'red',
+                        radius: 6,
+                        fillColor: 'red',
+                        fillOpacity: 0.8
+                    }).addTo(map);
+
+                    map.fitBounds(L.latLngBounds(latlngs));
+
+                    $('#distance').text('Distance: ' + response.distance);
+                    $('#duration').text('Durée: ' + response.duration);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
