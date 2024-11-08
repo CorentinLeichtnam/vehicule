@@ -83,7 +83,9 @@
                 <label for="vehicle_id">Choisir un véhicule</label>
                 <select class="form-control" id="vehicle_id" name="vehicle_id" required>
                     {% for vehicle in vehicles %}
-                    <option value="{{ vehicle.id }}">{{ vehicle.naming.make }} {{ vehicle.naming.model }}</option>
+                        <option value="{{ vehicle.id }}">
+                            {{ vehicle.naming.make }} {{ vehicle.naming.model }} - Autonomie : {{ vehicle.range.chargetrip_range.best }} km
+                        </option>
                     {% endfor %}
                 </select>
             </div>
