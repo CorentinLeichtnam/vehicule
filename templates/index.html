@@ -63,7 +63,9 @@
                 <label for="vehicle_id">Choisir un véhicule</label>
                 <select class="form-control" id="vehicle_id" name="vehicle_id" required>
                     {% for vehicle in vehicles %}
-                    <option value="{{ vehicle.id }}">{{ vehicle.naming.make }} {{ vehicle.naming.model }}</option>
+                    <option value="{{ vehicle.id }}">
+                        {{ vehicle.naming.make }} {{ vehicle.naming.model }} (Autonomie: {{ vehicle.range }} km)
+                    </option>
                     {% endfor %}
                 </select>
             </div>
@@ -87,10 +89,30 @@
             // Ajout des tuiles de la carte OpenStreetMap
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
+            // Variables pour stocker l'itinéraire, les marqueurs de stations, le départ et l'arrivée
+            var currentRoute = null;
+            var stationMarkers = [];
+            var startMarker = null;
+            var endMarker = null;
+
             // Soumission du formulaire et traitement de la réponse
             $('form').submit(function(event) {
                 event.preventDefault();
                 var formData = $(this).serialize();
+
+                // Supprimer l'itinéraire précédent, les marqueurs de bornes et les marqueurs de départ/arrivée
+                if (currentRoute) {
+                    map.removeLayer(currentRoute);
+                }
+                stationMarkers.forEach(marker => map.removeLayer(marker));
+                stationMarkers = [];  // Réinitialiser le tableau des marqueurs
+
+                if (startMarker) {
+                    map.removeLayer(startMarker);
+                }
+                if (endMarker) {
+                    map.removeLayer(endMarker);
+                }
 
                 // Envoi des données au serveur
                 $.post('/route_data', formData, function(response) {
@@ -105,30 +127,31 @@
                     var latlngs = route.map(function(coord) { return [coord[0], coord[1]] });
 
                     // Affichage de l'itinéraire sur la carte
-                    L.polyline(latlngs, {color: 'blue'}).addTo(map);
+                    currentRoute = L.polyline(latlngs, {color: 'blue'}).addTo(map);
 
                     // Ajout de marqueurs pour chaque borne de recharge
                     stations.forEach(function(station) {
                         var stationCoord = station.location.coordinates;
-                        var stationDistance = calculateDistance(latlngs, [stationCoord[1], stationCoord[0]]);
+                        var stationDistance = calculateRouteDistance(latlngs, [stationCoord[1], stationCoord[0]]);
                         
-                        // Ajout d'un marqueur avec popup incluant le nom de la station et la distance
-                        L.marker([stationCoord[1], stationCoord[0]]).bindPopup(
+                        // Ajout d'un marqueur avec popup incluant le nom de la station et la distance depuis le départ
+                        var marker = L.marker([stationCoord[1], stationCoord[0]]).bindPopup(
                             `<div class="station-popup">
-                                ${station.name} <br> Distance: ${stationDistance.toFixed(2)} km
+                                ${station.name} <br> Distance depuis départ : ${stationDistance.toFixed(2)} km
                             </div>`
                         ).addTo(map);
+                        stationMarkers.push(marker);  // Ajouter le marqueur au tableau
                     });
 
                     // Marqueurs pour le point de départ et d'arrivée
-                    L.circleMarker([route[0][0], route[0][1]], {
+                    startMarker = L.circleMarker([route[0][0], route[0][1]], {
                         color: 'green',
                         radius: 6,
                         fillColor: 'green',
                         fillOpacity: 0.8
                     }).addTo(map).bindPopup("Départ");
 
-                    L.circleMarker([route[route.length - 1][0], route[route.length - 1][1]], {
+                    endMarker = L.circleMarker([route[route.length - 1][0], route[route.length - 1][1]], {
                         color: 'red',
                         radius: 6,
                         fillColor: 'red',
@@ -144,18 +167,23 @@
                 });
             });
 
-            // Fonction pour calculer la distance entre un point et l'itinéraire le plus proche
-            function calculateDistance(route, stationCoord) {
-                let minDistance = Infinity;
+            // Fonction pour calculer la distance cumulée le long de l'itinéraire jusqu'à la borne la plus proche
+            function calculateRouteDistance(route, stationCoord) {
+                let totalDistance = 0;
+                let reached = false;
 
-                route.forEach(function(routeCoord) {
-                    const distance = getDistance(routeCoord, stationCoord);
-                    if (distance < minDistance) {
-                        minDistance = distance;
+                for (let i = 0; i < route.length - 1; i++) {
+                    let segmentStart = route[i];
+                    let segmentEnd = route[i + 1];
+                    let segmentDistance = getDistance(segmentStart, segmentEnd);
+                    totalDistance += segmentDistance;
+
+                    if (getDistance(segmentEnd, stationCoord) < 0.5) {  // Si la borne est proche de ce segment
+                        reached = true;
+                        break;
                     }
-                });
-
-                return minDistance;
+                }
+                return reached ? totalDistance : 0;
             }
 
             // Fonction pour calculer la distance entre deux points (en km) avec la formule Haversine
