@@ -3,15 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trajet et véhicules</title>
+    <title>Trajet et Véhicules</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+        .container {
+            margin-top: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #007bff;
+            margin-bottom: 30px;
+        }
+        form {
+            background: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        #result {
+            background: #007bff;
+            color: #fff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        #map {
+            height: 500px;
+            margin-top: 20px;
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .station-popup {
+            font-weight: bold;
+            color: #007bff;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1>Planifiez votre trajet</h1>
+        <h1>Planifiez votre Trajet</h1>
         <form method="POST">
             <div class="form-group">
                 <label for="start_city">Ville de départ</label>
@@ -29,64 +67,108 @@
                     {% endfor %}
                 </select>
             </div>
-            <button type="submit" class="btn btn-primary">Calculer</button>
+            <button type="submit" class="btn btn-primary btn-block">Calculer</button>
         </form>
         
         <div id="result" class="result-card">
-            <h4>Informations sur le trajet</h4>
+            <h4>Informations sur le Trajet</h4>
             <p id="distance"></p>
             <p id="duration"></p>
         </div>
 
-        <div id="map" style="height: 500px;"></div>
+        <div id="map"></div>
     </div>
 
     <script>
         $(document).ready(function() {
-            var map = L.map('map').setView([48.8566, 2.3522], 12);
+            // Initialisation de la carte centrée sur la France
+            var map = L.map('map').setView([48.8566, 2.3522], 6);
 
+            // Ajout des tuiles de la carte OpenStreetMap
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
+            // Soumission du formulaire et traitement de la réponse
             $('form').submit(function(event) {
                 event.preventDefault();
                 var formData = $(this).serialize();
+
+                // Envoi des données au serveur
                 $.post('/route_data', formData, function(response) {
                     if (response.error) {
                         alert(response.error);
                         return;
                     }
 
+                    // Récupération des données de l'itinéraire et des bornes
                     var route = response.route;
                     var stations = response.stations;
                     var latlngs = route.map(function(coord) { return [coord[0], coord[1]] });
 
+                    // Affichage de l'itinéraire sur la carte
                     L.polyline(latlngs, {color: 'blue'}).addTo(map);
 
+                    // Ajout de marqueurs pour chaque borne de recharge
                     stations.forEach(function(station) {
                         var stationCoord = station.location.coordinates;
-                        L.marker([stationCoord[1], stationCoord[0]]).bindPopup(station.name).addTo(map);
+                        var stationDistance = calculateDistance(latlngs, [stationCoord[1], stationCoord[0]]);
+                        
+                        // Ajout d'un marqueur avec popup incluant le nom de la station et la distance
+                        L.marker([stationCoord[1], stationCoord[0]]).bindPopup(
+                            `<div class="station-popup">
+                                ${station.name} <br> Distance: ${stationDistance.toFixed(2)} km
+                            </div>`
+                        ).addTo(map);
                     });
 
+                    // Marqueurs pour le point de départ et d'arrivée
                     L.circleMarker([route[0][0], route[0][1]], {
                         color: 'green',
                         radius: 6,
                         fillColor: 'green',
                         fillOpacity: 0.8
-                    }).addTo(map);
+                    }).addTo(map).bindPopup("Départ");
 
                     L.circleMarker([route[route.length - 1][0], route[route.length - 1][1]], {
                         color: 'red',
                         radius: 6,
                         fillColor: 'red',
                         fillOpacity: 0.8
-                    }).addTo(map);
+                    }).addTo(map).bindPopup("Arrivée");
 
+                    // Ajustement de la vue pour afficher tout l'itinéraire
                     map.fitBounds(L.latLngBounds(latlngs));
 
-                    $('#distance').text('Distance: ' + response.distance);
-                    $('#duration').text('Durée: ' + response.duration);
+                    // Mise à jour des informations de distance et de durée
+                    $('#distance').text('Distance totale : ' + response.distance);
+                    $('#duration').text('Durée estimée : ' + response.duration);
                 });
             });
+
+            // Fonction pour calculer la distance entre un point et l'itinéraire le plus proche
+            function calculateDistance(route, stationCoord) {
+                let minDistance = Infinity;
+
+                route.forEach(function(routeCoord) {
+                    const distance = getDistance(routeCoord, stationCoord);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                    }
+                });
+
+                return minDistance;
+            }
+
+            // Fonction pour calculer la distance entre deux points (en km) avec la formule Haversine
+            function getDistance(coord1, coord2) {
+                var R = 6371; // Rayon de la Terre en km
+                var dLat = (coord2[0] - coord1[0]) * Math.PI / 180;
+                var dLon = (coord2[1] - coord1[1]) * Math.PI / 180;
+                var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                        Math.cos(coord1[0] * Math.PI / 180) * Math.cos(coord2[0] * Math.PI / 180) *
+                        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                return R * c;
+            }
         });
     </script>
 </body>
