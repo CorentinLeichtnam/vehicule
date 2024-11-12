@@ -6,8 +6,8 @@ app = Flask(__name__)
 
 GRAPHOPPER_API_KEY = '1395718d-379c-452b-b1c7-538e1a5a7a68'
 GRAPHOPPER_URL = "https://graphhopper.com/api/1/route"
-CHARGETRIP_CLIENT_KEY = '6710ba84021ae871189270f5'
-CHARGETRIP_APP_KEY = '6710ba84021ae871189270f7'
+CHARGETRIP_CLIENT_KEY = '6733150680a6ff9bad08e92f'
+CHARGETRIP_APP_KEY = '6733150680a6ff9bad08e931'
 CHARGETRIP_URL = 'https://api.chargetrip.io/graphql'
 
 # Variable globale pour stocker les données des véhicules
