@@ -1,19 +1,13 @@
 from flask import Flask, render_template, request, jsonify
 import requests
 from math import radians, sin, cos, sqrt, atan2
-import os
-from dotenv import load_dotenv
-
-# Charger les variables d'environnement depuis le fichier .env
-load_dotenv()
 
 app = Flask(__name__)
 
-# Récupérer les clés API depuis les variables d'environnement
-GRAPHOPPER_API_KEY = os.getenv('GRAPHOPPER_API_KEY')
-CHARGETRIP_CLIENT_KEY = os.getenv('CHARGETRIP_CLIENT_KEY')
-CHARGETRIP_APP_KEY = os.getenv('CHARGETRIP_APP_KEY')
+GRAPHOPPER_API_KEY = '1395718d-379c-452b-b1c7-538e1a5a7a68'
 GRAPHOPPER_URL = "https://graphhopper.com/api/1/route"
+CHARGETRIP_CLIENT_KEY = '6710ba84021ae871189270f5'
+CHARGETRIP_APP_KEY = '6710ba84021ae871189270f7'
 CHARGETRIP_URL = 'https://api.chargetrip.io/graphql'
 
 # Variable globale pour stocker les données des véhicules
