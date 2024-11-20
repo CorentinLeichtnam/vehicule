@@ -12,26 +12,9 @@
         body {
             font-family: Arial, sans-serif;
             background-color: #f4f4f4;
-            margin: 0;
-            padding: 0;
         }
-        .container-fluid {
-            display: flex;
-            height: 100vh;
-            flex-wrap: wrap;
-        }
-        #map {
-            flex: 2;
-            height: 100%;
-            border-right: 2px solid #ddd;
-            box-shadow: 4px 0 8px rgba(0, 0, 0, 0.1);
-        }
-        .form-container {
-            flex: 1;
-            background: #fff;
-            padding: 20px;
-            overflow-y: auto;
-            box-shadow: -4px 0 8px rgba(0, 0, 0, 0.1);
+        .container {
+            margin-top: 20px;
         }
         h1 {
             text-align: center;
@@ -39,75 +22,63 @@
             margin-bottom: 30px;
         }
         form {
-            margin-bottom: 20px;
-        }
-        form .form-group label {
-            font-weight: bold;
-        }
-        form button {
-            margin-top: 10px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
         #result {
             background: #007bff;
             color: #fff;
             padding: 15px;
             border-radius: 5px;
-            margin-bottom: 20px;
-            text-align: center;
+            margin-top: 20px;
+        }
+        #map {
+            height: 500px;
+            margin-top: 20px;
+            border-radius: 5px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
         .station-popup {
             font-weight: bold;
             color: #007bff;
         }
-        .btn-primary {
-            background-color: #007bff;
-            border-color: #007bff;
-            box-shadow: 0 4px 6px rgba(0, 123, 255, 0.4);
-        }
-        .btn-primary:hover {
-            background-color: #0056b3;
-            border-color: #0056b3;
-        }
     </style>
 </head>
 <body>
-    <div class="container-fluid">
-        <!-- Carte à gauche -->
-        <div id="map"></div>
-
-        <!-- Formulaire et résultats à droite -->
-        <div class="form-container">
-            <h1>Planifiez votre Trajet</h1>
-            <form method="POST">
-                <div class="form-group">
-                    <label for="start_city">Ville de départ</label>
-                    <input type="text" class="form-control" id="start_city" name="start_city" required>
-                </div>
-                <div class="form-group">
-                    <label for="end_city">Ville d'arrivée</label>
-                    <input type="text" class="form-control" id="end_city" name="end_city" required>
-                </div>
-                <div class="form-group">
-                    <label for="vehicle_id">Choisir un véhicule</label>
-                    <select class="form-control" id="vehicle_id" name="vehicle_id" required>
-                        {% for vehicle in vehicles %}
-                        <option value="{{ vehicle.id }}">
-                            {{ vehicle.naming.make }} {{ vehicle.naming.model }}
-                            (Autonomie : {{ vehicle.range.chargetrip_range.best }} km - 
-                            {{ vehicle.range.chargetrip_range.worst }} km)
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <button type="submit" class="btn btn-primary btn-block">Calculer</button>
-            </form>
-
-            <div id="result">
-                <h4>Informations sur le Trajet</h4>
-                <p id="distance"></p>
-                <p id="duration"></p>
+    <div class="container">
+        <h1>Planifiez votre Trajet</h1>
+        <form method="POST">
+            <div class="form-group">
+                <label for="start_city">Ville de départ</label>
+                <input type="text" class="form-control" id="start_city" name="start_city" required>
             </div>
+            <div class="form-group">
+                <label for="end_city">Ville d'arrivée</label>
+                <input type="text" class="form-control" id="end_city" name="end_city" required>
+            </div>
+            <div class="form-group">
+                <label for="vehicle_id">Choisir un véhicule</label>
+                <select class="form-control" id="vehicle_id" name="vehicle_id" required>
+                    {% for vehicle in vehicles %}
+                    <option value="{{ vehicle.id }}">
+                        {{ vehicle.naming.make }} {{ vehicle.naming.model }} (Autonomie: {{ vehicle.range }} km)
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Calculer</button>
+        </form>
+        
+        <div id="result" class="result-card">
+            <h4>Informations sur le Trajet</h4>
+            <p id="distance"></p>
+            <p id="duration"></p>
         </div>
+
+        <div id="map"></div>
     </div>
 
     <script>
@@ -167,7 +138,7 @@
                         var marker = L.marker([stationCoord[1], stationCoord[0]]).bindPopup(
                             `<div class="station-popup">
                                 ${station.name} <br> Distance depuis départ : ${stationDistance.toFixed(2)} km
-                            </div>` 
+                            </div>`
                         ).addTo(map);
                         stationMarkers.push(marker);  // Ajouter le marqueur au tableau
                     });
